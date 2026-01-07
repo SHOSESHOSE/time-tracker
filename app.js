@@ -270,7 +270,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderLogs() {
     const d = toYMD(selectedDate);
-    const logs = loadLogs().filter((x) => x.date === d);
+    const allLogs = loadLogs();
+
+const logs = allLogs
+  .filter(x => x.date === d)
+  .filter(x => x.sent !== true); // ★未送信のみ
+
 
     logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
     logsList.innerHTML = "";
@@ -553,4 +558,5 @@ window.handleSendToSheet = async function () {
     btn.dataset.busy = "0";
   }
 };
+
 
