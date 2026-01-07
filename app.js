@@ -27,13 +27,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function bindUserNameButton() {
-    const btn = document.getElementById("changeUserBtn");
-    if (!btn) return;
-    btn.addEventListener("click", () => {
+    const handleChangeUser = () => {
       const current = getUserName();
       const input = prompt("名前を変更してください", current);
-      if (input !== null) setUserName(input);
-    });
+  if (input !== null) setUserName(input);
+};
+
+btn.addEventListener("click", handleChangeUser);
+btn.addEventListener("touchstart", (e) => {
+  e.preventDefault(); // Safari対策
+  handleChangeUser();
+});
+
   }
 
   // 初期化
@@ -432,5 +437,6 @@ function exportCsvForSelectedDate() {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
 
 
