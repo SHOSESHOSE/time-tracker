@@ -84,64 +84,9 @@
     </div>
 
     <script src="app.js"></script>
-    <script src="app.js"></script>
-
-<script>
-  // ===== ユーザー名管理（ここから追加） =====
-  const USER_KEY = "timeTrackerUserName";
-
-  function getUserName() {
-    return localStorage.getItem(USER_KEY) || "";
-  }
-
-  function setUserName(name) {
-    const cleaned = String(name).replace(/[\r\n,]/g, " ").trim();
-    if (!cleaned) return false;
-    localStorage.setItem(USER_KEY, cleaned);
-    return true;
-  }
-
-  function ensureUserName() {
-    let name = getUserName();
-    if (!name) {
-      const input = prompt("名前を入力してください（例：松原）");
-      if (input && setUserName(input)) {
-        name = getUserName();
-      } else {
-        localStorage.setItem(USER_KEY, "unknown");
-        name = "unknown";
-      }
-    }
-    return name;
-  }
-
-  function updateUserNameUI() {
-    const label = document.getElementById("userNameLabel");
-    if (label) label.textContent = getUserName() || "unknown";
-  }
-
-  function bindChangeUserButton() {
-    const btn = document.getElementById("changeUserBtn");
-    if (!btn) return;
-    btn.addEventListener("click", () => {
-      const current = getUserName();
-      const input = prompt("名前を変更してください", current);
-      if (input === null) return;
-      if (setUserName(input)) {
-        updateUserNameUI();
-        alert("名前を更新しました");
-      }
-    });
-  }
-
-  // app.js の後に実行されるので DOM は出来てる前提でOK
-  ensureUserName();
-  updateUserNameUI();
-  bindChangeUserButton();
-  // ===== ユーザー名管理（ここまで） =====
-</script>
 
 </body>
 
 </html>
+
 
