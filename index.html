@@ -9,6 +9,16 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+  <!-- ▼▼ これを追加（ユーザー表示エリア） ▼▼ -->
+  <div id="userBar" style="margin-bottom:12px;">
+    ユーザー：<strong id="userNameLabel">未設定</strong>
+    <button id="changeUserBtn" type="button">名前を変更</button>
+  </div>
+  <!-- ▲▲ ここまで ▲▲ -->
+
+  <!-- 既存の画面（打刻ボタンなど）はこの下のままでOK -->
+
     <div class="container">
         <header>
             <h1>作業時間トラッカー</h1>
@@ -75,4 +85,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
