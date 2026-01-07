@@ -531,3 +531,24 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
+// iOS Safari対策：HTML直呼び用
+window.handleSendToSheet = async function () {
+  const btn = document.getElementById("sendToSheet");
+  if (!btn) return;
+
+  if (btn.dataset.busy === "1") return;
+  btn.dataset.busy = "1";
+  btn.disabled = true;
+
+  try {
+    await sendSelectedDateLogsToGoogleForm();
+    alert("スプレッドシートに送信しました");
+  } catch (e) {
+    console.error(e);
+    alert("送信に失敗しました");
+  } finally {
+    btn.disabled = false;
+    btn.dataset.busy = "0";
+  }
+};
