@@ -399,12 +399,13 @@ async function sendSelectedDateLogsToGoogleForm() {
   // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
   // あなたの entry マッピング（確定）
-  const ENTRY_USER     = "entry.1740056764";
-  const ENTRY_DATE     = "entry.534195892";
-  const ENTRY_CATEGORY = "entry.2081291626";
-  const ENTRY_START    = "entry.1118932593";
-  const ENTRY_END      = "entry.1515830053";
-  const ENTRY_MINUTES  = "entry.1993585802";
+const ENTRY_USER     = "entry.1740056764";
+const ENTRY_DATE     = "entry.534195892";
+const ENTRY_CATEGORY = "entry.2081291626";
+const ENTRY_START    = "entry.1118932593";
+const ENTRY_END      = "entry.1515830053";
+const ENTRY_MINUTES  = "entry.1993585802";
+
 
   // 隠しiframe（画面遷移しない）
   let iframe = document.getElementById("hiddenGoogleFormFrame");
@@ -533,6 +534,7 @@ function sleep(ms) {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
 
 
 
