@@ -1,4 +1,7 @@
 // 作業時間トラッカー（index.htmlに合わせた動作確定版）
+// + ユーザー名変更（Safari対策）
+// + CSV出力にユーザー名
+// + Googleフォームへ送信（スプシ集約）
 
 const LS_KEY = "timeTracker.logs";
 
@@ -7,7 +10,7 @@ let selectedDate = new Date();   // Date
 let editingLogId = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-    // ===== ユーザー名管理 =====
+  // ===== ユーザー名管理 =====
   const USER_KEY = "timeTrackerUserName";
 
   function getUserName() {
@@ -27,24 +30,32 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function bindUserNameButton() {
+    const btn = document.getElementById("changeUserBtn");
+    if (!btn) return;
+
     const handleChangeUser = () => {
       const current = getUserName();
       const input = prompt("名前を変更してください", current);
-  if (input !== null) setUserName(input);
-};
+      if (input !== null) setUserName(input);
+    };
 
-btn.addEventListener("click", handleChangeUser);
-btn.addEventListener("touchstart", (e) => {
-  e.preventDefault(); // Safari対策
-  handleChangeUser();
-});
-
+    btn.addEventListener("click", handleChangeUser);
+    // iOS Safari / PWA 対策：touchstart も拾う
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        handleChangeUser();
+      },
+      { passive: false }
+    );
   }
 
-  // 初期化
+  // 初期化：初回だけ名前入力
   if (!localStorage.getItem(USER_KEY)) {
     const first = prompt("名前を入力してください（例：松原）");
-    if (first) localStorage.setItem(USER_KEY, first);
+    if (first) localStorage.setItem(USER_KEY, String(first).trim());
+    else localStorage.setItem(USER_KEY, "unknown");
   }
   updateUserNameUI();
   bindUserNameButton();
@@ -56,7 +67,7 @@ btn.addEventListener("touchstart", (e) => {
   const nextDayBtn = document.getElementById("nextDay");
 
   const currentStatusBox = document.getElementById("currentStatus");
-  const statusText = currentStatusBox.querySelector(".status-text");
+  const statusText = currentStatusBox?.querySelector(".status-text");
 
   const categoryButtons = document.querySelectorAll(".category-btn[data-category]");
   const stopBtn = document.getElementById("stopBtn");
@@ -64,6 +75,7 @@ btn.addEventListener("touchstart", (e) => {
   const logsList = document.getElementById("logsList");
   const summary = document.getElementById("summary");
   const exportBtn = document.getElementById("exportCsv");
+  const sendBtn = document.getElementById("sendToSheet"); // ★追加（index.htmlにボタンがある前提）
 
   // モーダル要素
   const editModal = document.getElementById("editModal");
@@ -89,12 +101,12 @@ btn.addEventListener("touchstart", (e) => {
     selectedDate = fromYMD(dateInput.value);
     renderAll();
   });
-  prevDayBtn.addEventListener("click", () => {
+  prevDayBtn?.addEventListener("click", () => {
     selectedDate = addDays(selectedDate, -1);
     dateInput.value = toYMD(selectedDate);
     renderAll();
   });
-  nextDayBtn.addEventListener("click", () => {
+  nextDayBtn?.addEventListener("click", () => {
     selectedDate = addDays(selectedDate, +1);
     dateInput.value = toYMD(selectedDate);
     renderAll();
@@ -110,23 +122,34 @@ btn.addEventListener("touchstart", (e) => {
   });
 
   // 停止
-  stopBtn.addEventListener("click", () => {
+  stopBtn?.addEventListener("click", () => {
     stopCurrent();
     renderAll();
   });
 
   // CSV出力
-  exportBtn.addEventListener("click", () => {
+  exportBtn?.addEventListener("click", () => {
     exportCsvForSelectedDate();
   });
 
+  // ★スプシ送信（GoogleフォームへPOST）
+  sendBtn?.addEventListener("click", async () => {
+    try {
+      await sendSelectedDateLogsToGoogleForm();
+      alert("スプレッドシートに送信しました");
+    } catch (e) {
+      console.error(e);
+      alert("送信に失敗しました。通信状況を確認してください。");
+    }
+  });
+
   // モーダル操作
-  cancelEdit.addEventListener("click", () => closeModal());
-  editModal.addEventListener("click", (e) => {
+  cancelEdit?.addEventListener("click", () => closeModal());
+  editModal?.addEventListener("click", (e) => {
     if (e.target === editModal) closeModal();
   });
 
-  saveEdit.addEventListener("click", () => {
+  saveEdit?.addEventListener("click", () => {
     if (!editingLogId) return;
     const logs = loadLogs();
     const idx = logs.findIndex((x) => x.id === editingLogId);
@@ -156,7 +179,7 @@ btn.addEventListener("touchstart", (e) => {
     renderAll();
   });
 
-  deleteLog.addEventListener("click", () => {
+  deleteLog?.addEventListener("click", () => {
     if (!editingLogId) return;
     let logs = loadLogs();
     logs = logs.filter((x) => x.id !== editingLogId);
@@ -318,46 +341,88 @@ btn.addEventListener("touchstart", (e) => {
     editModal.style.display = "none";
   }
 
-function exportCsvForSelectedDate() {
-  const d = toYMD(selectedDate);
-  const logs = loadLogs().filter((x) => x.date === d);
-  logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
+  // CSV出力（ユーザー列追加）
+  function exportCsvForSelectedDate() {
+    const d = toYMD(selectedDate);
+    const logs = loadLogs().filter((x) => x.date === d);
+    logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 
-  // ✅ ユーザー名を取得（index.html側で保存しているキー）
-  const userNameRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
-  const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
-  const safeUserName = userName.replace(/[\\\/:*?"<>|]/g, "").trim() || "unknown";
+    const userNameRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
+    const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
+    const safeUserName = userName.replace(/[\\\/:*?"<>|]/g, "").trim() || "unknown";
 
-  // ✅ ヘッダーにユーザー列を追加
-  const header = ["ユーザー", "カテゴリ", "開始", "終了", "分"];
+    const header = ["ユーザー", "カテゴリ", "開始", "終了", "分"];
+    const rows = logs.map((log) => {
+      const s = new Date(log.startISO);
+      const e = log.endISO ? new Date(log.endISO) : null;
+      return [
+        userName,
+        log.category,
+        `${d} ${fmtHM(s)}`,
+        e ? `${d} ${fmtHM(e)}` : "",
+        calcMinutes(log.startISO, log.endISO),
+      ];
+    });
 
-  const rows = logs.map((log) => {
-    const s = new Date(log.startISO);
-    const e = log.endISO ? new Date(log.endISO) : null;
-    return [
-      userName,
-      log.category,
-      `${d} ${fmtHM(s)}`,
-      e ? `${d} ${fmtHM(e)}` : "",
-      calcMinutes(log.startISO, log.endISO)
-    ];
-  });
+    const csv = [header, ...rows]
+      .map((r) => r.map(escapeCsv).join(","))
+      .join("\n");
 
-  const csv = [header, ...rows]
-    .map((r) => r.map(escapeCsv).join(","))
-    .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `time_log_${d}_${safeUserName}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `time_log_${d}_${safeUserName}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+  // ★Googleフォーム送信（1ログ＝1送信）
+  async function sendSelectedDateLogsToGoogleForm() {
+    const d = toYMD(selectedDate);
+    const logs = loadLogs().filter((x) => x.date === d);
+    logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
+
+    const userNameRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
+    const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
+
+    // ▼▼▼ ここだけ埋める：あなたの FORM_ID ▼▼▼
+    const FORM_RESPONSE_URL =
+      "https://docs.google.com/forms/d/e/【FORM_ID】/formResponse";
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // あなたが指定した順番の entry マッピング（確定）
+    // 1: user, 2: date, 3: minutes, 4: category, 5: start, 6: end
+    const ENTRY_USER     = "entry.1740056764";
+    const ENTRY_DATE     = "entry.534195892";
+    const ENTRY_MINUTES  = "entry.2081291626";
+    const ENTRY_CATEGORY = "entry.1118932593";
+    const ENTRY_START    = "entry.1515830053";
+    const ENTRY_END      = "entry.1993585802";
+
+    for (const log of logs) {
+      const s = new Date(log.startISO);
+      const e = log.endISO ? new Date(log.endISO) : null;
+
+      const payload = new URLSearchParams();
+      payload.append(ENTRY_USER, userName);
+      payload.append(ENTRY_DATE, d);
+      payload.append(ENTRY_MINUTES, String(calcMinutes(log.startISO, log.endISO)));
+      payload.append(ENTRY_CATEGORY, log.category);
+      payload.append(ENTRY_START, `${d} ${fmtHM(s)}`);
+      payload.append(ENTRY_END, e ? `${d} ${fmtHM(e)}` : "");
+
+      await fetch(FORM_RESPONSE_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: payload.toString(),
+      });
+    }
+  }
 
   // ------- ユーティリティ -------
 
@@ -437,6 +502,3 @@ function exportCsvForSelectedDate() {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
-
-
-
