@@ -384,49 +384,76 @@ document.addEventListener("DOMContentLoaded", () => {
     URL.revokeObjectURL(url);
   }
 
-  // ★Googleフォーム送信（1ログ＝1送信）
-  async function sendSelectedDateLogsToGoogleForm() {
-    const d = toYMD(selectedDate);
-    const logs = loadLogs().filter((x) => x.date === d);
-    logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
+// ★Googleフォーム送信（1ログ＝1送信）※iPhone/PWAでも通りやすい版
+async function sendSelectedDateLogsToGoogleForm() {
+  const d = toYMD(selectedDate);
+  const logs = loadLogs().filter((x) => x.date === d);
+  logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 
-    const userNameRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
-    const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
+  const userNameRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
+  const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
 
-    // ▼▼▼ ここだけ埋める：あなたの FORM_ID ▼▼▼
-    const FORM_RESPONSE_URL =
-      "https://docs.google.com/forms/d/e/【FORM_ID】/formResponse";
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+  // ▼▼▼ ここだけ埋める：あなたの FORM_ID ▼▼▼
+  const FORM_RESPONSE_URL =
+    "https://docs.google.com/forms/d/e/【FORM_ID】/formResponse";
+  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    // あなたが指定した順番の entry マッピング（確定）
-    // 1: user, 2: date, 3: minutes, 4: category, 5: start, 6: end
-    const ENTRY_USER     = "entry.1740056764";
-    const ENTRY_DATE     = "entry.534195892";
-    const ENTRY_MINUTES  = "entry.2081291626";
-    const ENTRY_CATEGORY = "entry.1118932593";
-    const ENTRY_START    = "entry.1515830053";
-    const ENTRY_END      = "entry.1993585802";
+  // あなたの entry マッピング（確定）
+  const ENTRY_USER     = "entry.1740056764";
+  const ENTRY_DATE     = "entry.534195892";
+  const ENTRY_MINUTES  = "entry.2081291626";
+  const ENTRY_CATEGORY = "entry.1118932593";
+  const ENTRY_START    = "entry.1515830053";
+  const ENTRY_END      = "entry.1993585802";
 
-    for (const log of logs) {
-      const s = new Date(log.startISO);
-      const e = log.endISO ? new Date(log.endISO) : null;
-
-      const payload = new URLSearchParams();
-      payload.append(ENTRY_USER, userName);
-      payload.append(ENTRY_DATE, d);
-      payload.append(ENTRY_MINUTES, String(calcMinutes(log.startISO, log.endISO)));
-      payload.append(ENTRY_CATEGORY, log.category);
-      payload.append(ENTRY_START, `${d} ${fmtHM(s)}`);
-      payload.append(ENTRY_END, e ? `${d} ${fmtHM(e)}` : "");
-
-      await fetch(FORM_RESPONSE_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: payload.toString(),
-      });
-    }
+  // 隠しiframe（画面遷移しない）
+  let iframe = document.getElementById("hiddenGoogleFormFrame");
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.name = "hiddenGoogleFormFrame";
+    iframe.id = "hiddenGoogleFormFrame";
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
   }
+
+  // 1ログずつ送信
+  for (const log of logs) {
+    const s = new Date(log.startISO);
+    const e = log.endISO ? new Date(log.endISO) : null;
+
+    const form = document.createElement("form");
+    form.action = FORM_RESPONSE_URL;
+    form.method = "POST";
+    form.target = "hiddenGoogleFormFrame";
+
+    const add = (name, value) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value ?? "";
+      form.appendChild(input);
+    };
+
+    add(ENTRY_USER, userName);
+    add(ENTRY_DATE, d);
+    add(ENTRY_MINUTES, String(calcMinutes(log.startISO, log.endISO)));
+    add(ENTRY_CATEGORY, log.category);
+    add(ENTRY_START, `${d} ${fmtHM(s)}`);
+    add(ENTRY_END, e ? `${d} ${fmtHM(e)}` : "");
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+
+    // 連投しすぎ防止（Google側が落とすのを避ける）
+    await sleep(150);
+  }
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 
   // ------- ユーティリティ -------
 
@@ -506,5 +533,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
 
 
