@@ -48,9 +48,13 @@
         <div class="logs-section">
             <div class="logs-header">
                 <h2>作業ログ</h2>
-                <button id="exportCsv" class="export-btn">📊 CSV出力</button>
-            </div>
-            <div id="logsList" class="logs-list"></div>
+                <div style="display:flex; gap:8px;">
+                    <button id="exportCsv" class="export-btn">📊 CSV出力</button>
+                    <button id="sendToSheet" class="export-btn">📤 スプシに送信</button>
+    </div>
+</div>
+<div id="logsList" class="logs-list"></div>
+
         </div>
     </div>
 
@@ -88,5 +92,6 @@
 </body>
 
 </html>
+
 
 
