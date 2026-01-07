@@ -236,6 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
       category,
       startISO: now.toISOString(),
       endISO: null,
+      sent: false,   // ★追加
     };
 
     const logs = loadLogs();
@@ -552,3 +553,4 @@ window.handleSendToSheet = async function () {
     btn.dataset.busy = "0";
   }
 };
+
