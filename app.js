@@ -7,6 +7,44 @@ let selectedDate = new Date();   // Date
 let editingLogId = null;
 
 document.addEventListener("DOMContentLoaded", () => {
+    // ===== ユーザー名管理 =====
+  const USER_KEY = "timeTrackerUserName";
+
+  function getUserName() {
+    return localStorage.getItem(USER_KEY) || "unknown";
+  }
+
+  function setUserName(name) {
+    const cleaned = String(name).replace(/[\r\n,]/g, " ").trim();
+    if (!cleaned) return;
+    localStorage.setItem(USER_KEY, cleaned);
+    updateUserNameUI();
+  }
+
+  function updateUserNameUI() {
+    const label = document.getElementById("userNameLabel");
+    if (label) label.textContent = getUserName();
+  }
+
+  function bindUserNameButton() {
+    const btn = document.getElementById("changeUserBtn");
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      const current = getUserName();
+      const input = prompt("名前を変更してください", current);
+      if (input !== null) setUserName(input);
+    });
+  }
+
+  // 初期化
+  if (!localStorage.getItem(USER_KEY)) {
+    const first = prompt("名前を入力してください（例：松原）");
+    if (first) localStorage.setItem(USER_KEY, first);
+  }
+  updateUserNameUI();
+  bindUserNameButton();
+  // =========================
+
   // 要素取得
   const dateInput = document.getElementById("dateInput");
   const prevDayBtn = document.getElementById("prevDay");
@@ -394,4 +432,5 @@ function exportCsvForSelectedDate() {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
 
