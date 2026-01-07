@@ -150,6 +150,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         await sendSelectedDateLogsToGoogleForm();
+        window.__sendingToSheet = false;
+
+window.handleSendToSheet = async function () {
+  if (window.__sendingToSheet) return;
+
+  const btn = document.getElementById("sendToSheet");
+  window.__sendingToSheet = true;
+  if (btn) btn.disabled = true;
+
+  try {
+    await sendSelectedDateLogsToGoogleForm();
+    alert("スプレッドシートに送信しました");
+  } catch (e) {
+    console.error(e);
+    alert("送信に失敗しました");
+  } finally {
+    if (btn) btn.disabled = false;
+    window.__sendingToSheet = false;
+  }
+};
+
         alert("スプレッドシートに送信しました");
       } catch (err) {
         console.error(err);
@@ -560,6 +581,7 @@ window.handleSendToSheet = async function () {
     btn.dataset.busy = "0";
   }
 };
+
 
 
 
