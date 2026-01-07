@@ -272,4 +272,32 @@ header h1 {
 .btn-secondary {
     background: #999;
     color: white;
+
+}
+/* === iOS/スマホでタップが死ぬ系の予防 === */
+button, a, input, select, textarea, label {
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+  touch-action: manipulation;
+}
+
+/* === 送信ボタンを強制的に押せる状態にする === */
+#sendToSheet {
+  position: relative !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+/* export-btn が無効化されてるケース潰し */
+.export-btn {
+  pointer-events: auto !important;
+}
+
+/* === “透明モーダルが被ってる” 事故を殺す（超多い） === */
+#editModal {
+  display: none;
+  pointer-events: none;
+}
+#editModal[style*="display: block"] {
+  display: block;
+  pointer-events: auto;
 }
