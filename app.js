@@ -141,7 +141,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // スプシ送信（スマホで「押せない/一回しか押せない」対策込み）
   if (sendBtn) {
     sendBtn.type = "button"; // form内でも暴発しない
-    sendBtn.addEventListener("pointerup", async (e) => {
       e.preventDefault();
 
       // 多重送信ロック
@@ -561,6 +560,7 @@ window.handleSendToSheet = async function () {
     btn.dataset.busy = "0";
   }
 };
+
 
 
 
