@@ -5,66 +5,32 @@ window.addEventListener("unhandledrejection", (e) => {
   alert("Promiseエラー: " + (e.reason?.message || e.reason || "unknown"));
 });
 
-// 作業時間トラッカー（index.htmlに合わせた動作確定版）
-// + ユーザー名変更（Safari対策）
-// + CSV出力にユーザー名
-// + Googleフォームへ送信（スプシ集約）
+// 作業時間トラッカー（堅牢版）
+// - スマホでボタンが押せなくなる問題を回避（pointerup統一 / 多重送信ロック）
+// - CSV出力にユーザー名
+// - Googleフォームへ送信（1ログ=1送信 / hidden form）
 
 const LS_KEY = "timeTracker.logs";
+const USER_KEY = "timeTrackerUserName";
+
+// ===== Googleフォーム =====
+const FORM_RESPONSE_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSdYEQrCid_6FzZOTMutgOQe856ifZqEph3bMCFYY6rOoo0pdA/formResponse";
+
+// entry マッピング（確定）
+const ENTRY_USER     = "entry.1740056764";
+const ENTRY_DATE     = "entry.534195892";
+const ENTRY_CATEGORY = "entry.2081291626";
+const ENTRY_START    = "entry.1118932593";
+const ENTRY_END      = "entry.1515830053";
+const ENTRY_MINUTES  = "entry.1993585802";
+// =========================
 
 let currentTask = null;          // { id, date, category, startISO, endISO }
 let selectedDate = new Date();   // Date
 let editingLogId = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-  // ===== ユーザー名管理 =====
-  const USER_KEY = "timeTrackerUserName";
-
-  function getUserName() {
-    return localStorage.getItem(USER_KEY) || "unknown";
-  }
-
-  function setUserName(name) {
-    const cleaned = String(name).replace(/[\r\n,]/g, " ").trim();
-    if (!cleaned) return;
-    localStorage.setItem(USER_KEY, cleaned);
-    updateUserNameUI();
-  }
-
-  function updateUserNameUI() {
-    const label = document.getElementById("userNameLabel");
-    if (label) label.textContent = getUserName();
-  }
-
-
-  function bindUserNameButton() {
-  const btn = document.getElementById("changeUserBtn");
-  if (!btn) return;
-
-  const handleChangeUser = () => {
-    const current = getUserName();
-    const input = prompt("名前を変更してください", current);
-    if (input !== null) setUserName(input);
-  };
-
-  btn.addEventListener("click", handleChangeUser);
-  btn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    handleChangeUser();
-  }, { passive: false });
-}
-
-
-  // 初期化：初回だけ名前入力
-  if (!localStorage.getItem(USER_KEY)) {
-    const first = prompt("名前を入力してください（例：松原）");
-    if (first) localStorage.setItem(USER_KEY, String(first).trim());
-    else localStorage.setItem(USER_KEY, "unknown");
-  }
-  updateUserNameUI();
-  bindUserNameButton();
-  // =========================
-
   // 要素取得
   const dateInput = document.getElementById("dateInput");
   const prevDayBtn = document.getElementById("prevDay");
@@ -79,7 +45,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const logsList = document.getElementById("logsList");
   const summary = document.getElementById("summary");
   const exportBtn = document.getElementById("exportCsv");
-  const sendBtn = document.getElementById("sendToSheet"); // ★追加（index.htmlにボタンがある前提）
+  const sendBtn = document.getElementById("sendToSheet");
+
+  // ユーザー名UI
+  const userNameLabel = document.getElementById("userNameLabel");
+  const changeUserBtn = document.getElementById("changeUserBtn");
 
   // モーダル要素
   const editModal = document.getElementById("editModal");
@@ -90,13 +60,45 @@ document.addEventListener("DOMContentLoaded", () => {
   const deleteLog = document.getElementById("deleteLog");
   const cancelEdit = document.getElementById("cancelEdit");
 
-  // 安全チェック（ここで止まると何も動かないので即わかる）
+  // 安全チェック
   if (!dateInput || !statusText || !logsList || !summary) {
     alert("HTML要素が見つかりません（idの不一致の可能性）");
     return;
   }
 
-  // 初期：今日をセット
+  // ===== ユーザー名管理 =====
+  function getUserName() {
+    return localStorage.getItem(USER_KEY) || "unknown";
+  }
+  function setUserName(name) {
+    const cleaned = String(name).replace(/[\r\n,]/g, " ").trim();
+    if (!cleaned) return;
+    localStorage.setItem(USER_KEY, cleaned);
+    updateUserNameUI();
+  }
+  function updateUserNameUI() {
+    if (userNameLabel) userNameLabel.textContent = getUserName();
+  }
+
+  // 初回だけ名前入力
+  if (!localStorage.getItem(USER_KEY)) {
+    const first = prompt("名前を入力してください（例：松原）");
+    localStorage.setItem(USER_KEY, (first ? String(first).trim() : "unknown") || "unknown");
+  }
+  updateUserNameUI();
+
+  // changeUserBtn（スマホ対策：pointerup 1本）
+  if (changeUserBtn) {
+    changeUserBtn.addEventListener("pointerup", (e) => {
+      e.preventDefault();
+      const current = getUserName();
+      const input = prompt("名前を変更してください", current);
+      if (input !== null) setUserName(input);
+    });
+  }
+  // =========================
+
+  // 初期：今日
   dateInput.value = toYMD(new Date());
   selectedDate = fromYMD(dateInput.value);
 
@@ -136,16 +138,29 @@ document.addEventListener("DOMContentLoaded", () => {
     exportCsvForSelectedDate();
   });
 
-  // ★スプシ送信（GoogleフォームへPOST）
-  sendBtn?.addEventListener("click", async () => {
-    try {
-      await sendSelectedDateLogsToGoogleForm();
-      alert("スプレッドシートに送信しました");
-    } catch (e) {
-      console.error(e);
-      alert("送信に失敗しました。通信状況を確認してください。");
-    }
-  });
+  // スプシ送信（スマホで「押せない/一回しか押せない」対策込み）
+  if (sendBtn) {
+    sendBtn.type = "button"; // form内でも暴発しない
+    sendBtn.addEventListener("pointerup", async (e) => {
+      e.preventDefault();
+
+      // 多重送信ロック
+      if (sendBtn.dataset.busy === "1") return;
+      sendBtn.dataset.busy = "1";
+      sendBtn.disabled = true;
+
+      try {
+        await sendSelectedDateLogsToGoogleForm();
+        alert("スプレッドシートに送ser.1740056764=Utest&entry.534195892=2026-01-07&entry.2081291626=Ctest&entry.1118932593=09:00&entry.1515830053=10:00&entry.1993585802=60&submit=Submit\" \r\n\r\n";
+      } catch (err) {
+        console.error(err);
+        alert("送信に失敗しました。通信状況を確認してください。");
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.dataset.busy = "0";
+      }
+    });
+  }
 
   // モーダル操作
   cancelEdit?.addEventListener("click", () => closeModal());
@@ -210,9 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function startCategory(category) {
     // 違うカテゴリへ切替えるとき、まず前の稼働を終了
-    if (currentTask) {
-      stopCurrent();
-    }
+    if (currentTask) stopCurrent();
 
     const now = new Date();
     const d = toYMD(selectedDate);
@@ -258,9 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const d = toYMD(selectedDate);
     const logs = loadLogs().filter((x) => x.date === d);
 
-    // 開始時刻順
     logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
-
     logsList.innerHTML = "";
 
     if (logs.length === 0) {
@@ -289,7 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
               ${fmtHM(s)} → ${e ? fmtHM(e) : "（進行中）"} / ${mins}分
             </div>
           </div>
-          <button style="padding:8px 10px;border-radius:10px;border:0;cursor:pointer;">編集</button>
+          <button type="button" style="padding:8px 10px;border-radius:10px;border:0;cursor:pointer;">編集</button>
         </div>
       `;
 
@@ -351,7 +362,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const logs = loadLogs().filter((x) => x.date === d);
     logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 
-    const userNameRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
+    const userNameRaw = localStorage.getItem(USER_KEY) || "unknown";
     const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
     const safeUserName = userName.replace(/[\\\/:*?"<>|]/g, "").trim() || "unknown";
 
@@ -384,78 +395,65 @@ document.addEventListener("DOMContentLoaded", () => {
     URL.revokeObjectURL(url);
   }
 
-// ★Googleフォーム送信（1ログ＝1送信）※iPhone/PWAでも通りやすい版
-async function sendSelectedDateLogsToGoogleForm() {
-  const d = toYMD(selectedDate);
-  const logs = loadLogs().filter((x) => x.date === d);
-  logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
+  // Googleフォーム送信（1ログ=1送信 / hidden form）
+  async function sendSelectedDateLogsToGoogleForm() {
+    const d = toYMD(selectedDate);
+    const logs = loadLogs().filter((x) => x.date === d);
+    logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 
-  const userNameRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
-  const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
+    if (logs.length === 0) {
+      alert("この日のログがありません");
+      return;
+    }
 
-  // ▼▼▼ ここだけ埋める：あなたの FORM_ID ▼▼▼
-const FORM_RESPONSE_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSdYEQrCid_6FzZOTMutgOQe856ifZqEph3bMCFYY6rOoo0pdA/formResponse";
+    const userNameRaw = localStorage.getItem(USER_KEY) || "unknown";
+    const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
 
-  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // hidden iframe（画面遷移しない）
+    let iframe = document.getElementById("hiddenGoogleFormFrame");
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.name = "hiddenGoogleFormFrame";
+      iframe.id = "hiddenGoogleFormFrame";
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+    }
 
-  // あなたの entry マッピング（確定）
-const ENTRY_USER     = "entry.1740056764";
-const ENTRY_DATE     = "entry.534195892";
-const ENTRY_CATEGORY = "entry.2081291626";
-const ENTRY_START    = "entry.1118932593";
-const ENTRY_END      = "entry.1515830053";
-const ENTRY_MINUTES  = "entry.1993585802";
+    for (const log of logs) {
+      const s = new Date(log.startISO);
+      const e = log.endISO ? new Date(log.endISO) : null;
 
+      const form = document.createElement("form");
+      form.action = FORM_RESPONSE_URL;
+      form.method = "POST";
+      form.target = "hiddenGoogleFormFrame";
 
-  // 隠しiframe（画面遷移しない）
-  let iframe = document.getElementById("hiddenGoogleFormFrame");
-  if (!iframe) {
-    iframe = document.createElement("iframe");
-    iframe.name = "hiddenGoogleFormFrame";
-    iframe.id = "hiddenGoogleFormFrame";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
+      const add = (name, value) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        input.value = value ?? "";
+        form.appendChild(input);
+      };
+
+      add(ENTRY_USER, userName);
+      add(ENTRY_DATE, d);
+      add(ENTRY_CATEGORY, log.category);
+      add(ENTRY_START, fmtHM(s));                 // ← HH:MM
+      add(ENTRY_END, e ? fmtHM(e) : "");          // ← HH:MM
+      add(ENTRY_MINUTES, String(calcMinutes(log.startISO, log.endISO)));
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+
+      await sleep(200); // 連投しすぎ防止
+    }
   }
 
-  // 1ログずつ送信
-  for (const log of logs) {
-    const s = new Date(log.startISO);
-    const e = log.endISO ? new Date(log.endISO) : null;
-
-    const form = document.createElement("form");
-    form.action = FORM_RESPONSE_URL;
-    form.method = "POST";
-    form.target = "hiddenGoogleFormFrame";
-
-    const add = (name, value) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value ?? "";
-      form.appendChild(input);
-    };
-
-    add(ENTRY_USER, userName);
-    add(ENTRY_DATE, d);
-    add(ENTRY_MINUTES, String(calcMinutes(log.startISO, log.endISO)));
-    add(ENTRY_CATEGORY, log.category);
-    add(ENTRY_START, `${d} ${fmtHM(s)}`);
-    add(ENTRY_END, e ? `${d} ${fmtHM(e)}` : "");
-
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-
-    // 連投しすぎ防止（Google側が落とすのを避ける）
-    await sleep(150);
+  function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
   }
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 
   // ------- ユーティリティ -------
 
@@ -523,7 +521,6 @@ function sleep(ms) {
   }
 
   function toISO(dateYMD, timeHHMM) {
-    // ローカル時刻の YYYY-MM-DD + HH:MM を ISO に変換
     const [y, m, d] = dateYMD.split("-").map(Number);
     const [hh, mm] = timeHHMM.split(":").map(Number);
     const dt = new Date(y, m - 1, d, hh, mm, 0);
@@ -531,16 +528,6 @@ function sleep(ms) {
   }
 
   function cryptoRandomId() {
-    // ほぼユニークでOK
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
-
-
-
-
-
-
-
-
-
