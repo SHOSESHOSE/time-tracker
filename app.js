@@ -5,8 +5,8 @@ window.addEventListener("unhandledrejection", (e) => {
   alert("Promiseエラー: " + (e.reason?.message || e.reason || "unknown"));
 });
 
-// 作業時間トラッカー（堅牢版）
-// - スマホでボタンが押せなくなる問題を回避（pointerup統一 / 多重送信ロック）
+// 作業時間トラッカー（スマホ堅牢版）
+// - ボタン不具合対策：pointerup統一 + 多重送信ロック + finallyで必ず解除
 // - CSV出力にユーザー名
 // - Googleフォームへ送信（1ログ=1送信 / hidden form）
 
@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       try {
         await sendSelectedDateLogsToGoogleForm();
-        alert("スプレッドシートに送ser.1740056764=Utest&entry.534195892=2026-01-07&entry.2081291626=Ctest&entry.1118932593=09:00&entry.1515830053=10:00&entry.1993585802=60&submit=Submit\" \r\n\r\n";
+        alert("スプレッドシートに送信しました");
       } catch (err) {
         console.error(err);
         alert("送信に失敗しました。通信状況を確認してください。");
@@ -439,8 +439,8 @@ document.addEventListener("DOMContentLoaded", () => {
       add(ENTRY_USER, userName);
       add(ENTRY_DATE, d);
       add(ENTRY_CATEGORY, log.category);
-      add(ENTRY_START, fmtHM(s));                 // ← HH:MM
-      add(ENTRY_END, e ? fmtHM(e) : "");          // ← HH:MM
+      add(ENTRY_START, fmtHM(s));                 // HH:MM
+      add(ENTRY_END, e ? fmtHM(e) : "");          // HH:MM
       add(ENTRY_MINUTES, String(calcMinutes(log.startISO, log.endISO)));
 
       document.body.appendChild(form);
