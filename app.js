@@ -452,6 +452,9 @@ const logs = allLogs
       document.body.appendChild(form);
       form.submit();
       document.body.removeChild(form);
+      log.sent = true;     // ★送信済みにする
+      saveLogs(allLogs);  // ★必ず元配列を保存
+
 
       await sleep(200); // 連投しすぎ防止
     }
@@ -558,5 +561,6 @@ window.handleSendToSheet = async function () {
     btn.dataset.busy = "0";
   }
 };
+
 
 
