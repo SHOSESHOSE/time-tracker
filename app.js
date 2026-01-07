@@ -1,3 +1,10 @@
+window.addEventListener("error", (e) => {
+  alert("JSエラー: " + (e.message || "unknown"));
+});
+window.addEventListener("unhandledrejection", (e) => {
+  alert("Promiseエラー: " + (e.reason?.message || e.reason || "unknown"));
+});
+
 // 作業時間トラッカー（index.htmlに合わせた動作確定版）
 // + ユーザー名変更（Safari対策）
 // + CSV出力にユーザー名
@@ -502,3 +509,4 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
