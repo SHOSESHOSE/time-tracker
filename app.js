@@ -36,27 +36,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if (label) label.textContent = getUserName();
   }
 
+
   function bindUserNameButton() {
-    const btn = document.getElementById("changeUserBtn");
-    if (!btn) return;
+  const btn = document.getElementById("changeUserBtn");
+  if (!btn) return;
 
-    const handleChangeUser = () => {
-      const current = getUserName();
-      const input = prompt("名前を変更してください", current);
-      if (input !== null) setUserName(input);
-    };
+  const handleChangeUser = () => {
+    const current = getUserName();
+    const input = prompt("名前を変更してください", current);
+    if (input !== null) setUserName(input);
+  };
 
-    btn.addEventListener("click", handleChangeUser);
-    // iOS Safari / PWA 対策：touchstart も拾う
-    btn.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        handleChangeUser();
-      },
-      { passive: false }
-    );
-  }
+  btn.addEventListener("click", handleChangeUser);
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    handleChangeUser();
+  }, { passive: false });
+}
+
 
   // 初期化：初回だけ名前入力
   if (!localStorage.getItem(USER_KEY)) {
@@ -509,4 +506,5 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
 
