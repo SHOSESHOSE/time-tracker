@@ -395,7 +395,7 @@ async function sendSelectedDateLogsToGoogleForm() {
 
   // ▼▼▼ ここだけ埋める：あなたの FORM_ID ▼▼▼
 const FORM_RESPONSE_URL =
-  https://docs.google.com/forms/d/e/<フォームID>/formResponse
+  https://docs.google.com/forms/d/e/1FAIpQLSdYEQrCid_6FzZOTMutgOQe856ifZqEph3bMCFYY6rOoo0pdA/formResponse
 
   // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
@@ -535,6 +535,7 @@ function sleep(ms) {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
 
 
 
