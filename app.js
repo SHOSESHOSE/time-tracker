@@ -1,4 +1,4 @@
-// 作業時間トラッカー（CSVにユーザー名対応・確定版）
+// 作業時間トラッカー（index.htmlに合わせた動作確定版）
 
 const LS_KEY = "timeTracker.logs";
 
@@ -31,13 +31,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const deleteLog = document.getElementById("deleteLog");
   const cancelEdit = document.getElementById("cancelEdit");
 
-  // 安全チェック
+  // 安全チェック（ここで止まると何も動かないので即わかる）
   if (!dateInput || !statusText || !logsList || !summary) {
     alert("HTML要素が見つかりません（idの不一致の可能性）");
     return;
   }
 
-  // 初期：今日
+  // 初期：今日をセット
   dateInput.value = toYMD(new Date());
   selectedDate = fromYMD(dateInput.value);
 
@@ -57,10 +57,11 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAll();
   });
 
-  // カテゴリ開始
+  // カテゴリボタン
   categoryButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      startCategory(btn.dataset.category);
+      const cat = btn.dataset.category;
+      startCategory(cat);
       renderAll();
     });
   });
@@ -77,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // モーダル操作
-  cancelEdit.addEventListener("click", closeModal);
+  cancelEdit.addEventListener("click", () => closeModal());
   editModal.addEventListener("click", (e) => {
     if (e.target === editModal) closeModal();
   });
@@ -90,9 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     logs[idx].category = editCategory.value;
 
-    const d = logs[idx].date;
+    const d = logs[idx].date; // YYYY-MM-DD
     const s = editStartTime.value;
-    const e = editEndTime.value;
+    const en = editEndTime.value;
 
     if (!s) {
       alert("開始時刻が空です");
@@ -100,8 +101,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     logs[idx].startISO = toISO(d, s);
-    logs[idx].endISO = e ? toISO(d, e) : null;
+    logs[idx].endISO = en ? toISO(d, en) : null;
 
+    // 稼働中ログを編集して endISO を埋めたら currentTask を外す
     if (currentTask && currentTask.id === editingLogId && logs[idx].endISO) {
       currentTask = null;
     }
@@ -113,16 +115,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   deleteLog.addEventListener("click", () => {
     if (!editingLogId) return;
-    let logs = loadLogs().filter((x) => x.id !== editingLogId);
-    if (currentTask && currentTask.id === editingLogId) currentTask = null;
+    let logs = loadLogs();
+    logs = logs.filter((x) => x.id !== editingLogId);
+
+    if (currentTask && currentTask.id === editingLogId) {
+      currentTask = null;
+    }
+
     saveLogs(logs);
     closeModal();
     renderAll();
   });
 
+  // 初回レンダリング
   renderAll();
 
-  // -------- 表示 --------
+  // ------- 関数 -------
 
   function renderAll() {
     renderStatus();
@@ -131,27 +139,38 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function startCategory(category) {
-    if (currentTask) stopCurrent();
+    // 違うカテゴリへ切替えるとき、まず前の稼働を終了
+    if (currentTask) {
+      stopCurrent();
+    }
+
+    const now = new Date();
     const d = toYMD(selectedDate);
+
     const newLog = {
       id: cryptoRandomId(),
       date: d,
       category,
-      startISO: new Date().toISOString(),
+      startISO: now.toISOString(),
       endISO: null,
     };
+
     const logs = loadLogs();
     logs.push(newLog);
     saveLogs(logs);
+
     currentTask = newLog;
   }
 
   function stopCurrent() {
     if (!currentTask) return;
+
     const logs = loadLogs();
     const idx = logs.findIndex((x) => x.id === currentTask.id);
-    if (idx !== -1) logs[idx].endISO = new Date().toISOString();
-    saveLogs(logs);
+    if (idx !== -1) {
+      logs[idx].endISO = new Date().toISOString();
+      saveLogs(logs);
+    }
     currentTask = null;
   }
 
@@ -160,16 +179,20 @@ document.addEventListener("DOMContentLoaded", () => {
       statusText.textContent = "停止中";
       return;
     }
-    const s = new Date(currentTask.startISO);
-    statusText.textContent = `作業中：${currentTask.category}（開始 ${fmtHM(s)}）`;
+    const start = new Date(currentTask.startISO);
+    statusText.textContent =
+      `作業中：${currentTask.category}（開始 ${start.toLocaleTimeString()}）`;
   }
 
   function renderLogs() {
     const d = toYMD(selectedDate);
     const logs = loadLogs().filter((x) => x.date === d);
+
+    // 開始時刻順
     logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 
     logsList.innerHTML = "";
+
     if (logs.length === 0) {
       logsList.innerHTML = `<div style="opacity:.7;">ログはまだありません</div>`;
       return;
@@ -182,12 +205,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const row = document.createElement("div");
       row.className = "log-item";
+      row.style.padding = "10px";
+      row.style.border = "1px solid rgba(0,0,0,.08)";
+      row.style.borderRadius = "10px";
       row.style.marginBottom = "8px";
+      row.style.background = "rgba(255,255,255,.8)";
+
       row.innerHTML = `
-        <strong>${log.category}</strong><br>
-        ${fmtHM(s)} → ${e ? fmtHM(e) : "進行中"} / ${mins}分
-        <br><button>編集</button>
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+          <div>
+            <div style="font-weight:700;">${log.category}</div>
+            <div style="opacity:.75;font-size:12px;">
+              ${fmtHM(s)} → ${e ? fmtHM(e) : "（進行中）"} / ${mins}分
+            </div>
+          </div>
+          <button style="padding:8px 10px;border-radius:10px;border:0;cursor:pointer;">編集</button>
+        </div>
       `;
+
       row.querySelector("button").addEventListener("click", () => openModal(log));
       logsList.appendChild(row);
     });
@@ -196,32 +231,60 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderSummary() {
     const d = toYMD(selectedDate);
     const logs = loadLogs().filter((x) => x.date === d);
-    const sums = {};
-    logs.forEach((l) => {
-      sums[l.category] = (sums[l.category] || 0) + calcMinutes(l.startISO, l.endISO);
+
+    const order = ["移動", "見積", "現場", "AI", "休憩"];
+    const sums = Object.fromEntries(order.map((k) => [k, 0]));
+
+    logs.forEach((log) => {
+      sums[log.category] = (sums[log.category] || 0) + calcMinutes(log.startISO, log.endISO);
     });
-    summary.innerHTML = Object.entries(sums)
-      .map(([k, v]) => `${k}: ${v}分`)
-      .join("<br>");
+
+    const total = order.reduce((acc, k) => acc + (sums[k] || 0), 0);
+
+    summary.innerHTML = `
+      <h2 style="margin:10px 0 6px;">今日の合計</h2>
+      ${order.map(k => `<div style="display:flex;justify-content:space-between;">
+        <div>${k}</div><div>${fmtHMFromMinutes(sums[k] || 0)}</div>
+      </div>`).join("")}
+      <hr style="opacity:.2;margin:8px 0;">
+      <div style="display:flex;justify-content:space-between;font-weight:700;">
+        <div>合計</div><div>${fmtHMFromMinutes(total)}</div>
+      </div>
+    `;
   }
 
-  // -------- CSV出力（ユーザー名対応） --------
+  function openModal(log) {
+    editingLogId = log.id;
+    editCategory.value = log.category;
+
+    const s = new Date(log.startISO);
+    editStartTime.value = fmtTimeInput(s);
+
+    if (log.endISO) {
+      const e = new Date(log.endISO);
+      editEndTime.value = fmtTimeInput(e);
+    } else {
+      editEndTime.value = "";
+    }
+
+    editModal.style.display = "block";
+  }
+
+  function closeModal() {
+    editingLogId = null;
+    editModal.style.display = "none";
+  }
 
   function exportCsvForSelectedDate() {
     const d = toYMD(selectedDate);
     const logs = loadLogs().filter((x) => x.date === d);
     logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 
-    const userRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
-    const userName = userRaw.replace(/[\r\n,]/g, " ").trim() || "unknown";
-    const safeUser = userName.replace(/[\\\/:*?"<>|]/g, "");
-
-    const header = ["ユーザー", "カテゴリ", "開始", "終了", "分"];
+    const header = ["カテゴリ", "開始", "終了", "分"];
     const rows = logs.map((log) => {
       const s = new Date(log.startISO);
       const e = log.endISO ? new Date(log.endISO) : null;
       return [
-        userName,
         log.category,
         `${d} ${fmtHM(s)}`,
         e ? `${d} ${fmtHM(e)}` : "",
@@ -229,50 +292,97 @@ document.addEventListener("DOMContentLoaded", () => {
       ];
     });
 
-    const csv = [header, ...rows].map(r => r.map(escapeCsv).join(",")).join("\n");
+    const csv = [header, ...rows]
+      .map((r) => r.map(escapeCsv).join(","))
+      .join("\n");
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `time_log_${d}_${safeUser}.csv`;
+    a.href = url;
+    a.download = `time_log_${d}.csv`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
-  // -------- ユーティリティ --------
+  // ------- ユーティリティ -------
 
   function loadLogs() {
-    return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
   }
+
   function saveLogs(logs) {
     localStorage.setItem(LS_KEY, JSON.stringify(logs));
   }
-  function calcMinutes(s, e) {
-    return Math.round((new Date(e || Date.now()) - new Date(s)) / 60000);
+
+  function calcMinutes(startISO, endISO) {
+    const start = new Date(startISO).getTime();
+    const end = endISO ? new Date(endISO).getTime() : Date.now();
+    const diffMs = Math.max(0, end - start);
+    return Math.round(diffMs / 60000);
   }
-  function toYMD(d) {
-    return d.toISOString().slice(0, 10);
+
+  function toYMD(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
-  function fromYMD(s) {
-    const [y, m, d] = s.split("-").map(Number);
+
+  function fromYMD(ymd) {
+    const [y, m, d] = ymd.split("-").map(Number);
     return new Date(y, m - 1, d);
   }
-  function addDays(d, n) {
-    const x = new Date(d);
-    x.setDate(x.getDate() + n);
-    return x;
+
+  function addDays(date, n) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + n);
+    return d;
   }
-  function fmtHM(d) {
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+  function fmtHM(date) {
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
   }
+
+  function fmtTimeInput(date) {
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  function fmtHMFromMinutes(mins) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h <= 0) return `${m}分`;
+    return `${h}時間${m}分`;
+  }
+
   function escapeCsv(v) {
-    return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    const s = String(v ?? "");
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
   }
-  function toISO(d, t) {
-    const [y, m, da] = d.split("-").map(Number);
-    const [h, mi] = t.split(":").map(Number);
-    return new Date(y, m - 1, da, h, mi).toISOString();
+
+  function toISO(dateYMD, timeHHMM) {
+    // ローカル時刻の YYYY-MM-DD + HH:MM を ISO に変換
+    const [y, m, d] = dateYMD.split("-").map(Number);
+    const [hh, mm] = timeHHMM.split(":").map(Number);
+    const dt = new Date(y, m - 1, d, hh, mm, 0);
+    return dt.toISOString();
   }
+
   function cryptoRandomId() {
+    // ほぼユニークでOK
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
