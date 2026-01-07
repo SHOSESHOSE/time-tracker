@@ -50,7 +50,15 @@
                 <h2>作業ログ</h2>
                 <div style="display:flex; gap:8px;">
                     <button id="exportCsv" class="export-btn">📊 CSV出力</button>
-                    <button id="sendToSheet" class="export-btn">📤 スプシに送信</button>
+                    <button
+  id="sendToSheet"
+  class="export-btn"
+  type="button"
+  onclick="handleSendToSheet()"
+>
+  📤 スプシに送信
+</button>
+
                 </div>
             </div>
 <div id="logsList" class="logs-list"></div>
@@ -92,6 +100,7 @@
 </body>
 
 </html>
+
 
 
 
