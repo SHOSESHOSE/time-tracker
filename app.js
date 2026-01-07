@@ -275,38 +275,46 @@ document.addEventListener("DOMContentLoaded", () => {
     editModal.style.display = "none";
   }
 
-  function exportCsvForSelectedDate() {
-    const d = toYMD(selectedDate);
-    const logs = loadLogs().filter((x) => x.date === d);
-    logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
+function exportCsvForSelectedDate() {
+  const d = toYMD(selectedDate);
+  const logs = loadLogs().filter((x) => x.date === d);
+  logs.sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 
-    const header = ["カテゴリ", "開始", "終了", "分"];
-    const rows = logs.map((log) => {
-      const s = new Date(log.startISO);
-      const e = log.endISO ? new Date(log.endISO) : null;
-      return [
-        log.category,
-        `${d} ${fmtHM(s)}`,
-        e ? `${d} ${fmtHM(e)}` : "",
-        calcMinutes(log.startISO, log.endISO)
-      ];
-    });
+  // ✅ ユーザー名を取得（index.html側で保存しているキー）
+  const userNameRaw = localStorage.getItem("timeTrackerUserName") || "unknown";
+  const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
+  const safeUserName = userName.replace(/[\\\/:*?"<>|]/g, "").trim() || "unknown";
 
-    const csv = [header, ...rows]
-      .map((r) => r.map(escapeCsv).join(","))
-      .join("\n");
+  // ✅ ヘッダーにユーザー列を追加
+  const header = ["ユーザー", "カテゴリ", "開始", "終了", "分"];
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+  const rows = logs.map((log) => {
+    const s = new Date(log.startISO);
+    const e = log.endISO ? new Date(log.endISO) : null;
+    return [
+      userName,
+      log.category,
+      `${d} ${fmtHM(s)}`,
+      e ? `${d} ${fmtHM(e)}` : "",
+      calcMinutes(log.startISO, log.endISO)
+    ];
+  });
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `time_log_${d}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
+  const csv = [header, ...rows]
+    .map((r) => r.map(escapeCsv).join(","))
+    .join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `time_log_${d}_${safeUserName}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
   // ------- ユーティリティ -------
 
@@ -386,3 +394,4 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
