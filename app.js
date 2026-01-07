@@ -394,8 +394,9 @@ async function sendSelectedDateLogsToGoogleForm() {
   const userName = String(userNameRaw).replace(/[\r\n,]/g, " ").trim() || "unknown";
 
   // ▼▼▼ ここだけ埋める：あなたの FORM_ID ▼▼▼
-  const FORM_RESPONSE_URL =
-    "https://docs.google.com/forms/d/e/【FORM_ID】/formResponse";
+const FORM_RESPONSE_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSdYEQrCid_6FzZOTMutgOQe856ifZqEph3bMCFYY6rOoo0pdA/formResponse";
+
   // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
   // あなたの entry マッピング（確定）
@@ -534,6 +535,7 @@ function sleep(ms) {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 });
+
 
 
 
