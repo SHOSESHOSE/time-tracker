@@ -319,7 +319,7 @@ const logs = allLogs
     const d = toYMD(selectedDate);
     const logs = loadLogs().filter((x) => x.date === d);
 
-    const order = ["移動", "見積", "現場", "AI", "休憩"];
+    const order = ["移動", "見積", "現場", "事務", "休憩"];
     const sums = Object.fromEntries(order.map((k) => [k, 0]));
 
     logs.forEach((log) => {
@@ -561,6 +561,7 @@ window.handleSendToSheet = async function () {
     btn.dataset.busy = "0";
   }
 };
+
 
 
 
