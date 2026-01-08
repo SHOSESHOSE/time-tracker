@@ -13,9 +13,6 @@ window.addEventListener("unhandledrejection", (e) => {
 const LS_KEY = "timeTracker.logs";
 const USER_KEY = "timeTrackerUserName";
 
-// ===== Googleフォーム =====
-const FORM_RESPONSE_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSdYEQrCid_6FzZOTMutgOQe856ifZqEph3bMCFYY6rOoo0pdA/formResponse";
 
 // entry マッピング（確定）
 const ENTRY_USER     = "entry.1740056764";
@@ -561,6 +558,7 @@ window.handleSendToSheet = async function () {
     btn.dataset.busy = "0";
   }
 };
+
 
 
 
